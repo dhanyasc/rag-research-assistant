@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+.env
+venv/
+.git
+.github
+.pytest_cache
+monitoring/
+aws/
+*.md
+docker-compose.yml
+test_rag.py
