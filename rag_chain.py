@@ -2,7 +2,8 @@
 RAG Chain - Retrieval Augmented Generation with anti-hallucination safeguards
 """
 
-from typing import Dict, List
+from __future__ import annotations
+
 import re
 
 
@@ -10,7 +11,7 @@ class RAGChain:
     def __init__(self, vector_store):
         self.vector_store = vector_store
 
-    def answer_question(self, question: str, top_k: int = 3) -> Dict:
+    def answer_question(self, question: str, top_k: int = 3) -> dict:
         retrieved_docs = self.vector_store.search(question, top_k=top_k)
 
         if not retrieved_docs:
@@ -18,7 +19,7 @@ class RAGChain:
                 "answer": "No documents uploaded yet. Please upload a document first.",
                 "sources": [],
                 "confidence_score": 0.0,
-                "is_grounded": True,
+                "is_grounded": True
             }
 
         answer = self._generate_answer(question, retrieved_docs)
@@ -31,7 +32,7 @@ class RAGChain:
             {
                 "content": doc["content"][:200] + "..." if len(doc["content"]) > 200 else doc["content"],
                 "page": doc["metadata"].get("page"),
-                "confidence": doc["similarity"],
+                "confidence": doc["similarity"]
             }
             for doc in retrieved_docs
         ]
@@ -40,21 +41,19 @@ class RAGChain:
             "answer": answer,
             "sources": sources,
             "confidence_score": round(confidence_score, 3),
-            "is_grounded": True,
+            "is_grounded": True
         }
 
-    def _generate_answer(self, question: str, docs: List[Dict]) -> str:
+    def _generate_answer(self, question: str, docs: list[dict]) -> str:
         question_lower = question.lower()
         all_content = " ".join(doc["content"] for doc in docs)
 
         sentences = re.split(r'[.!?§]+', all_content)
         sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
 
-        stop_words = {
-            'what', 'is', 'the', 'a', 'an', 'how', 'why', 'when', 'where', 'who',
-            'which', 'does', 'do', 'can', 'are', 'was', 'were', 'be', 'in', 'on',
-            'at', 'to', 'for', 'of', 'and', 'or', 'between', 'difference',
-        }
+        stop_words = {'what', 'is', 'the', 'a', 'an', 'how', 'why', 'when', 'where', 'who',
+                      'which', 'does', 'do', 'can', 'are', 'was', 'were', 'be', 'in', 'on',
+                      'at', 'to', 'for', 'of', 'and', 'or', 'between', 'difference'}
         question_words = set(question_lower.split()) - stop_words
 
         scored_sentences = []
