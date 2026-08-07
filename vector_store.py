@@ -2,26 +2,27 @@
 Vector Store - Keyword-based search for better accuracy
 """
 
-import re
+from __future__ import annotations
+
 import hashlib
-from typing import List, Dict
+import re
 from dataclasses import dataclass
 
 
 @dataclass
 class StoredDocument:
     content: str
-    metadata: Dict
+    metadata: dict
     doc_id: str
     keywords: set
 
 
 class VectorStore:
     def __init__(self):
-        self.documents: Dict[str, StoredDocument] = {}
-        self.document_sources: Dict[str, List[str]] = {}
+        self.documents: dict[str, StoredDocument] = {}
+        self.document_sources: dict[str, list[str]] = {}
 
-    def add_documents(self, chunks: List, filename: str) -> int:
+    def add_documents(self, chunks: list, filename: str) -> int:
         doc_ids = []
         for chunk in chunks:
             doc_id = self._generate_id(chunk.content, filename)
@@ -30,7 +31,7 @@ class VectorStore:
                 content=chunk.content,
                 metadata={**chunk.metadata, "source": filename},
                 doc_id=doc_id,
-                keywords=keywords,
+                keywords=keywords
             )
             doc_ids.append(doc_id)
 
@@ -41,15 +42,13 @@ class VectorStore:
 
     def _extract_keywords(self, text: str) -> set:
         words = re.findall(r'\b[a-z]{3,}\b', text.lower())
-        stop_words = {
-            'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can',
-            'has', 'have', 'had', 'was', 'one', 'our', 'out', 'with', 'they',
-            'this', 'that', 'from', 'which', 'their', 'will', 'would', 'there',
-            'been', 'more', 'when', 'some', 'what', 'into', 'than', 'other',
-        }
-        return set(w for w in words if w not in stop_words)
+        stop_words = {'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can',
+                      'has', 'have', 'had', 'was', 'one', 'our', 'out', 'with', 'they',
+                      'this', 'that', 'from', 'which', 'their', 'will', 'would', 'there',
+                      'been', 'more', 'when', 'some', 'what', 'into', 'than', 'other'}
+        return {w for w in words if w not in stop_words}
 
-    def search(self, query: str, top_k: int = 3) -> List[Dict]:
+    def search(self, query: str, top_k: int = 3) -> list[dict]:
         if not self.documents:
             return []
 
@@ -59,15 +58,20 @@ class VectorStore:
         for doc_id, doc in self.documents.items():
             common = query_keywords & doc.keywords
             content_lower = doc.content.lower()
+
+            # Score by keyword matches
             score = len(common) / max(len(query_keywords), 1)
+
+            # Boost if exact words appear
             for kw in query_keywords:
                 if kw in content_lower:
                     score += 0.15
+
             scored_docs.append({
                 "doc_id": doc_id,
                 "content": doc.content,
                 "metadata": doc.metadata,
-                "similarity": min(score, 1.0),
+                "similarity": min(score, 1.0)
             })
 
         scored_docs.sort(key=lambda x: x["similarity"], reverse=True)
@@ -79,7 +83,7 @@ class VectorStore:
     def get_document_count(self) -> int:
         return len(self.documents)
 
-    def list_documents(self) -> List[Dict]:
+    def list_documents(self) -> list[dict]:
         return [{"filename": f, "chunks": len(ids)} for f, ids in self.document_sources.items()]
 
     def clear(self):
