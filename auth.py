@@ -4,15 +4,16 @@ Authentication module – JWT-based user auth with bcrypt password hashing.
 In production, swap the in-memory store for PostgreSQL / DynamoDB.
 """
 
-import os
-import time
+from __future__ import annotations
+
+import base64
 import hashlib
 import hmac
-import base64
 import json
-from typing import Optional, Dict
-from pydantic import BaseModel
+import os
+import time
 
+from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas
@@ -35,7 +36,7 @@ class TokenResponse(BaseModel):
 # Simple password hashing (production: use bcrypt via passlib)
 # ---------------------------------------------------------------------------
 
-def _hash_password(password: str, salt: Optional[bytes] = None) -> tuple[str, bytes]:
+def _hash_password(password: str, salt: bytes | None = None) -> tuple[str, bytes]:
     if salt is None:
         salt = os.urandom(16)
     hashed = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100_000)
@@ -55,7 +56,7 @@ def _verify_password(password: str, stored_hash: str) -> bool:
 
 _SECRET = os.getenv("JWT_SECRET", "change-me-in-production-use-a-real-secret-key")
 _ALGORITHM = "HS256"
-_EXPIRY_SECONDS = int(os.getenv("JWT_EXPIRY_SECONDS", 86400))  # 24 h
+_EXPIRY_SECONDS = int(os.getenv("JWT_EXPIRY_SECONDS", "86400"))  # 24 h
 
 
 def _b64url(data: bytes) -> str:
@@ -75,7 +76,7 @@ def _create_jwt(payload: dict) -> str:
     return f"{signing_input}.{_b64url(sig)}"
 
 
-def _decode_jwt(token: str) -> Optional[dict]:
+def _decode_jwt(token: str) -> dict | None:
     try:
         parts = token.split(".")
         if len(parts) != 3:
@@ -91,7 +92,7 @@ def _decode_jwt(token: str) -> Optional[dict]:
         if payload.get("exp", 0) < time.time():
             return None
         return payload
-    except Exception:
+    except (ValueError, KeyError, json.JSONDecodeError):
         return None
 
 
@@ -104,22 +105,22 @@ class AuthHandler:
 
     def __init__(self):
         # In-memory user store — swap for a database in production
-        self._users: Dict[str, str] = {}  # username -> password_hash
+        self._users: dict[str, str] = {}  # username -> password_hash
 
-    def register(self, username: str, password: str) -> Optional[str]:
+    def register(self, username: str, password: str) -> str | None:
         if username in self._users:
             return None
         hashed, _ = _hash_password(password)
         self._users[username] = hashed
         return self._issue_token(username)
 
-    def login(self, username: str, password: str) -> Optional[str]:
+    def login(self, username: str, password: str) -> str | None:
         stored = self._users.get(username)
         if stored is None or not _verify_password(password, stored):
             return None
         return self._issue_token(username)
 
-    def decode_token(self, token: str) -> Optional[dict]:
+    def decode_token(self, token: str) -> dict | None:
         return _decode_jwt(token)
 
     # -- internal ----------------------------------------------------------
