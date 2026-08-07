@@ -9,11 +9,14 @@ Exposes:
   - Active user gauge
 """
 
+from __future__ import annotations
+
 import time
-from typing import Callable
+from collections.abc import Callable
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response, PlainTextResponse
+from starlette.responses import PlainTextResponse, Response
 
 
 # ============================================================================
@@ -30,7 +33,7 @@ class Counter:
         self._values: dict[tuple, float] = {}
 
     def inc(self, amount: float = 1.0, **kwargs):
-        key = tuple(kwargs.get(l, "") for l in self.labels)
+        key = tuple(kwargs.get(label, "") for label in self.labels)
         self._values[key] = self._values.get(key, 0) + amount
 
     def collect(self) -> str:
@@ -43,7 +46,7 @@ class Counter:
     def _label_str(self, key: tuple) -> str:
         if not self.labels:
             return ""
-        pairs = ",".join(f'{l}="{v}"' for l, v in zip(self.labels, key))
+        pairs = ",".join(f'{label}="{v}"' for label, v in zip(self.labels, key))
         return "{" + pairs + "}"
 
 
@@ -104,7 +107,6 @@ class Histogram:
 # Metric instances
 # ============================================================================
 
-# HTTP-level (populated by middleware)
 HTTP_REQUEST_COUNT = Counter(
     "http_requests_total",
     "Total HTTP requests",
@@ -115,7 +117,6 @@ HTTP_REQUEST_LATENCY = Histogram(
     "HTTP request latency in seconds",
 )
 
-# Query-level
 QUERY_LATENCY = Histogram(
     "rag_query_latency_seconds",
     "End-to-end RAG query latency",
@@ -133,7 +134,6 @@ GROUNDED_ANSWERS = Counter(
     labels=["grounded"],
 )
 
-# Resource-level
 DOCUMENTS_LOADED = Gauge("rag_documents_loaded", "Number of document chunks in vector store")
 DOCUMENT_UPLOADS = Counter("rag_document_uploads_total", "Total documents uploaded")
 ACTIVE_USERS = Gauge("rag_active_users", "Total registered users")
