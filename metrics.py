@@ -18,7 +18,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 
-
 # ============================================================================
 # Lightweight Prometheus client (zero external deps)
 # ============================================================================
