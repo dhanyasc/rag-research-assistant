@@ -2,16 +2,19 @@
 Document Processor - Handles text extraction and semantic chunking
 """
 
-import re
+from __future__ import annotations
+
 import io
-from typing import List, Dict
+import re
 from dataclasses import dataclass
+
+from pypdf import PdfReader
 
 
 @dataclass
 class DocumentChunk:
     content: str
-    metadata: Dict
+    metadata: dict
     chunk_id: int
 
 
@@ -20,7 +23,7 @@ class DocumentProcessor:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    def process_document(self, content: bytes, filename: str) -> List[DocumentChunk]:
+    def process_document(self, content: bytes, filename: str) -> list[DocumentChunk]:
         if filename.endswith('.pdf'):
             text = self._extract_pdf_text(content)
         else:
@@ -31,7 +34,6 @@ class DocumentProcessor:
 
     def _extract_pdf_text(self, content: bytes) -> str:
         try:
-            from pypdf import PdfReader
             reader = PdfReader(io.BytesIO(content))
             text_parts = []
             for page_num, page in enumerate(reader.pages):
@@ -39,7 +41,7 @@ class DocumentProcessor:
                 if page_text:
                     text_parts.append(page_text)
             return "\n\n".join(text_parts)
-        except Exception as e:
+        except (ValueError, OSError) as e:
             print(f"PDF error: {e}")
             return ""
 
@@ -47,7 +49,7 @@ class DocumentProcessor:
         text = re.sub(r'\s+', ' ', text)
         return text.strip()
 
-    def _semantic_chunk(self, text: str, filename: str) -> List[DocumentChunk]:
+    def _semantic_chunk(self, text: str, filename: str) -> list[DocumentChunk]:
         chunks = []
         sentences = re.split(r'(?<=[.!?])\s+', text)
         current_chunk = ""
@@ -59,10 +61,9 @@ class DocumentProcessor:
                 continue
             if len(current_chunk) + len(sent) > self.chunk_size:
                 if current_chunk:
+                    meta = {"source": filename, "chunk_id": chunk_id}
                     chunks.append(DocumentChunk(
-                        content=current_chunk.strip(),
-                        metadata={"source": filename, "chunk_id": chunk_id},
-                        chunk_id=chunk_id,
+                        content=current_chunk.strip(), metadata=meta, chunk_id=chunk_id,
                     ))
                     chunk_id += 1
                 current_chunk = sent
@@ -70,9 +71,8 @@ class DocumentProcessor:
                 current_chunk = current_chunk + " " + sent if current_chunk else sent
 
         if current_chunk.strip():
+            meta = {"source": filename, "chunk_id": chunk_id}
             chunks.append(DocumentChunk(
-                content=current_chunk.strip(),
-                metadata={"source": filename, "chunk_id": chunk_id},
-                chunk_id=chunk_id,
+                content=current_chunk.strip(), metadata=meta, chunk_id=chunk_id,
             ))
         return chunks
